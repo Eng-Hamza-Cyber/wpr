@@ -19,7 +19,7 @@ def get_wordlist():
     except:
         sys.exit(1)
 
-async def scan(client, sem, url):
+async def scan(client, sem, url, is_dir=False):
     async with sem:
         ua_list = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -28,19 +28,42 @@ async def scan(client, sem, url):
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/121.0.2277.112",
-            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0",
+            "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.164 Mobile Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/106.0.0.0",
-            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0"
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
+            "Mozilla/5.0 (iPad; CPU OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Mobile/15E148 Safari/604.1",
+            "Mozilla/5.0 (Windows NT 10.0; ARM64; rv:123.0) Gecko/20100101 Firefox/123.0",
+            "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)",
+            "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
+            "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (PlayStation 5 7.61) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15"
         ]
+        
         headers = {"User-Agent": random.choice(ua_list)}
         try:
-            await asyncio.sleep(random.uniform(0.1, 0.5))
-            res = await client.head(url, headers=headers, timeout=10.0, follow_redirects=True)
-            if res.status_code == 200:
-                print(f"[+] FOUND: {url}")
-                with open("results.txt", "a") as f:
-                    f.write(url + "\n")
+            await asyncio.sleep(random.uniform(0.1, 0.3))
+            
+            if is_dir:
+                res = await client.get(url, headers=headers, timeout=10.0, follow_redirects=True)
+                if res.status_code == 200 and "Index of" in res.text:
+                    print(f"[!] DIRECTORY LISTING EXPOSED: {url}")
+                    with open("results.txt", "a") as f:
+                        f.write(f"[DIR] {url}\n")
+            else:
+                res = await client.head(url, headers=headers, timeout=10.0, follow_redirects=True)
+                if res.status_code == 200:
+                    ctype = res.headers.get("Content-Type", "").lower()
+                    if "text/html" in ctype and not (url.endswith('.html') or url.endswith('.htm')):
+                        return
+                    
+                    print(f"[+] FOUND: {url}")
+                    with open("results.txt", "a") as f:
+                        f.write(url + "\n")
         except:
             pass
 
@@ -50,12 +73,10 @@ async def main():
     target = args.target.rstrip('/')
     curr_year = datetime.now().year
 
-    m_numeric = [f"{i:02d}" for i in range(1, 13)]
-    m_full = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    m_short = [m[:3] for m in m_full]
-    all_variants = m_numeric + m_full + m_short
-
-    print(f"[*] WPR Started | Target: {target} | From: {args.start} | Concurrency: {args.concurrency}")
+    m_variants = [f"{i:02d}" for i in range(1, 13)] + \
+                  ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    
+    print(f"[*] WPR Started | Target: {target} | From: {args.start}")
 
     sem = asyncio.Semaphore(args.concurrency)
     limits = httpx.Limits(max_keepalive_connections=5, max_connections=args.concurrency)
@@ -63,9 +84,12 @@ async def main():
     async with httpx.AsyncClient(http2=True, limits=limits, verify=False) as client:
         tasks = []
         for year in range(args.start, curr_year + 1):
-            for variant in all_variants:
+            for variant in m_variants:
+                base_url = f"{target}/wp-content/uploads/{year}/{variant}/"
+                tasks.append(scan(client, sem, base_url, is_dir=True))
+                
                 for file in words:
-                    url = f"{target}/wp-content/uploads/{year}/{variant}/{file}"
+                    url = base_url + file
                     tasks.append(scan(client, sem, url))
         
         await asyncio.gather(*tasks)
