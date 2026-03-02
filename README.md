@@ -46,10 +46,10 @@ python wpr.py -t https://example.com -s 2018
 python wpr.py -t https://example.com -c 20`
 
 ## Argument Reference
-Flag,Description,Default
-"-t, --target",Target WordPress URL (Required),None
-"-s, --start",The year to begin scanning from,2000
-"-c, --concurrency",Number of simultaneous requests,5
+        Flag,                      Description,                 Default
+    "-t, --target",       Target WordPress URL (Required),       None
+    "-s, --start",        The year to begin scanning from,       2000
+    "-c, --concurrency",  Number of simultaneous requests,         5
 
 # Output
 Any successfully discovered files or exposed directories are immediately logged to results.txt in the following format:
