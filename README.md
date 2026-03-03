@@ -52,7 +52,7 @@ Increase concurrency for faster results `python wpr.py -t https://example.com -c
 # Output
 Any successfully discovered files or exposed directories are immediately logged to results.txt in the following format:
 
-`[+] FOUND: https://example.com/wp-content/uploads/2024/01/users.csv`
+`[*] [200 OK] -> https://example.com/wp-content/uploads/2024/01/users.csv`
 
 `[DIR] https://example.com/wp-content/uploads/2023/12/`
 
